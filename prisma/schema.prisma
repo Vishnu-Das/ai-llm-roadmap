@@ -1,0 +1,177 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String?
+  avatar    String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Progress tracking
+  progress Progress[]
+  
+  // User preferences
+  preferences UserPreferences?
+
+  @@map("users")
+}
+
+model UserPreferences {
+  id                String @id @default(cuid())
+  userId            String @unique
+  user              User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Learning preferences
+  difficultyLevel   String @default("beginner") // beginner, intermediate, advanced
+  learningStyle    String @default("visual") // visual, auditory, kinesthetic, reading
+  timeCommitment   String @default("medium") // low, medium, high
+  
+  // UI preferences
+  theme            String @default("light") // light, dark, auto
+  notifications    Boolean @default(true)
+  
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@map("user_preferences")
+}
+
+model Category {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?
+  icon        String?
+  color       String?
+  order       Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relationships
+  learningPaths LearningPath[]
+  resources     Resource[]
+
+  @@map("categories")
+}
+
+model LearningPath {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  slug        String   @unique
+  difficulty  String   @default("beginner") // beginner, intermediate, advanced
+  estimatedHours Int?
+  isPublished Boolean  @default(false)
+  order       Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relationships
+  categoryId  String
+  category    Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  
+  resources   Resource[]
+  progress    Progress[]
+  tags        LearningPathTag[]
+
+  @@map("learning_paths")
+}
+
+model Resource {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  url         String?
+  type        String   // video, article, book, course, tool, paper, tutorial
+  difficulty  String   @default("beginner") // beginner, intermediate, advanced
+  duration    Int?     // in minutes
+  isFree      Boolean  @default(true)
+  isExternal  Boolean  @default(false)
+  order       Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relationships
+  categoryId    String?
+  category      Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  
+  learningPathId String?
+  learningPath   LearningPath? @relation(fields: [learningPathId], references: [id], onDelete: SetNull)
+  
+  progress      Progress[]
+  tags          ResourceTag[]
+
+  @@map("resources")
+}
+
+model Progress {
+  id        String   @id @default(cuid())
+  status    String   @default("not_started") // not_started, in_progress, completed, skipped
+  completedAt DateTime?
+  notes     String?
+  rating    Int?     // 1-5 stars
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relationships
+  userId    String
+  user      User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  learningPathId String?
+  learningPath   LearningPath? @relation(fields: [learningPathId], references: [id], onDelete: Cascade)
+  
+  resourceId String?
+  resource   Resource? @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, learningPathId])
+  @@unique([userId, resourceId])
+  @@map("progress")
+}
+
+model Tag {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  color     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Many-to-many relationships
+  learningPaths LearningPathTag[]
+  resources     ResourceTag[]
+
+  @@map("tags")
+}
+
+// Many-to-many relationship tables
+model LearningPathTag {
+  learningPathId String
+  learningPath   LearningPath @relation(fields: [learningPathId], references: [id], onDelete: Cascade)
+  
+  tagId          String
+  tag            Tag @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([learningPathId, tagId])
+  @@map("learning_path_tags")
+}
+
+model ResourceTag {
+  resourceId String
+  resource   Resource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+  
+  tagId      String
+  tag        Tag @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([resourceId, tagId])
+  @@map("resource_tags")
+}
