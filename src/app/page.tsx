@@ -19,16 +19,31 @@ interface Category {
 export default function Home() {
   const [categories, setCategories] = useState<Category[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     fetch('/api/categories')
-      .then(res => res.json())
+      .then(res => {
+        if (!res.ok) {
+          throw new Error(`HTTP error! status: ${res.status}`)
+        }
+        return res.json()
+      })
       .then(data => {
-        setCategories(data)
+        // Ensure data is an array
+        if (Array.isArray(data)) {
+          setCategories(data)
+        } else {
+          console.error('API returned non-array data:', data)
+          setCategories([])
+          setError('Invalid data format received')
+        }
         setLoading(false)
       })
       .catch(error => {
         console.error('Error fetching categories:', error)
+        setCategories([])
+        setError('Failed to load categories')
         setLoading(false)
       })
   }, [])
@@ -40,6 +55,27 @@ export default function Home() {
           <div className="text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
             <p className="mt-4 text-gray-600 dark:text-gray-400">Loading learning paths...</p>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
+        <div className="container mx-auto px-4 py-16">
+          <div className="text-center">
+            <div className="bg-red-100 dark:bg-red-900 border border-red-400 text-red-700 dark:text-red-400 px-4 py-3 rounded mb-4">
+              <p className="font-bold">Error</p>
+              <p>{error}</p>
+            </div>
+            <button 
+              onClick={() => window.location.reload()} 
+              className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
+            >
+              Try Again
+            </button>
           </div>
         </div>
       </div>
@@ -66,77 +102,85 @@ export default function Home() {
 
       {/* Categories Grid */}
       <main className="container mx-auto px-4 py-12">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {categories.map((category) => (
-            <Link
-              key={category.id}
-              href={`/category/${category.id}`}
-              className="group block"
-            >
-              <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 p-6 border border-gray-200 dark:border-gray-700">
-                <div className="flex items-center mb-4">
-                  <div 
-                    className="text-3xl mr-4"
-                    style={{ color: category.color || '#3B82F6' }}
-                  >
-                    {category.icon || '📚'}
-                  </div>
-                  <div>
-                    <h3 className="text-xl font-semibold text-gray-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-                      {category.name}
-                    </h3>
-                    <div className="flex items-center space-x-4 text-sm text-gray-500 dark:text-gray-400">
-                      <span>{category._count.learningPaths} learning paths</span>
-                      <span>{category._count.resources} resources</span>
+        {categories.length === 0 ? (
+          <div className="text-center py-12">
+            <p className="text-gray-600 dark:text-gray-400 text-lg">No categories available at the moment.</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {categories.map((category) => (
+              <Link
+                key={category.id}
+                href={`/category/${category.id}`}
+                className="group block"
+              >
+                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 p-6 border border-gray-200 dark:border-gray-700">
+                  <div className="flex items-center mb-4">
+                    <div 
+                      className="text-3xl mr-4"
+                      style={{ color: category.color || '#3B82F6' }}
+                    >
+                      {category.icon || '📚'}
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-semibold text-gray-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                        {category.name}
+                      </h3>
+                      <div className="flex items-center space-x-4 text-sm text-gray-500 dark:text-gray-400">
+                        <span>{category._count?.learningPaths || 0} learning paths</span>
+                        <span>{category._count?.resources || 0} resources</span>
+                      </div>
                     </div>
                   </div>
+                  
+                  {category.description && (
+                    <p className="text-gray-600 dark:text-gray-300 text-sm leading-relaxed">
+                      {category.description}
+                    </p>
+                  )}
+                  
+                  <div className="mt-4 flex items-center text-blue-600 dark:text-blue-400 font-medium text-sm">
+                    Explore category
+                    <svg className="w-4 h-4 ml-1 transform group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                  </div>
                 </div>
-                
-                {category.description && (
-                  <p className="text-gray-600 dark:text-gray-300 text-sm leading-relaxed">
-                    {category.description}
-                  </p>
-                )}
-                
-                <div className="mt-4 flex items-center text-blue-600 dark:text-blue-400 font-medium text-sm">
-                  Explore category
-                  <svg className="w-4 h-4 ml-1 transform group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                  </svg>
-                </div>
-              </div>
-            </Link>
-          ))}
-        </div>
+              </Link>
+            ))}
+          </div>
+        )}
 
         {/* Stats Section */}
-        <div className="mt-16 text-center">
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-8 border border-gray-200 dark:border-gray-700">
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">
-              Learning Journey Stats
-            </h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-              <div>
-                <div className="text-3xl font-bold text-blue-600 dark:text-blue-400">
-                  {categories.length}
+        {categories.length > 0 && (
+          <div className="mt-16 text-center">
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-8 border border-gray-200 dark:border-gray-700">
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">
+                Learning Journey Stats
+              </h2>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                <div>
+                  <div className="text-3xl font-bold text-blue-600 dark:text-blue-400">
+                    {categories.length}
+                  </div>
+                  <div className="text-gray-600 dark:text-gray-400">Categories</div>
                 </div>
-                <div className="text-gray-600 dark:text-gray-400">Categories</div>
-              </div>
-              <div>
-                <div className="text-3xl font-bold text-purple-600 dark:text-purple-400">
-                  {categories.reduce((sum, cat) => sum + cat._count.learningPaths, 0)}
+                <div>
+                  <div className="text-3xl font-bold text-purple-600 dark:text-purple-400">
+                    {categories.reduce((sum, cat) => sum + (cat._count?.learningPaths || 0), 0)}
+                  </div>
+                  <div className="text-gray-600 dark:text-gray-400">Learning Paths</div>
                 </div>
-                <div className="text-gray-600 dark:text-gray-400">Learning Paths</div>
-              </div>
-              <div>
-                <div className="text-3xl font-bold text-green-600 dark:text-green-400">
-                  {categories.reduce((sum, cat) => sum + cat._count.resources, 0)}
+                <div>
+                  <div className="text-3xl font-bold text-green-600 dark:text-green-400">
+                    {categories.reduce((sum, cat) => sum + (cat._count?.resources || 0), 0)}
+                  </div>
+                  <div className="text-gray-600 dark:text-gray-400">Resources</div>
                 </div>
-                <div className="text-gray-600 dark:text-gray-400">Resources</div>
               </div>
             </div>
           </div>
-        </div>
+        )}
       </main>
 
       {/* Footer */}
